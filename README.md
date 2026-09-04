@@ -4,7 +4,7 @@
 
 Ask it questions like *"If a windstorm cuts harvest supply by 40% for six weeks, which mill stocks out first?"* — and it answers by calling tested, deterministic tools over real Swedish weather and timber-price data, never by guessing numbers.
 
-Built as a companion to my simulation project [RESILIENT-Forest](https://github.com/YOUR_USERNAME/resilient-forest), which found that **early warning is the best self-funding resilience intervention** in a regional forest supply chain. This project is the AI layer that makes such early warning usable: a conversational analyst over live risk signals.
+Built as a companion to my simulation project [RESILIENT-Forest](https://github.com/upasanasen/resilient-forest), which found that **early warning is the best self-funding resilience intervention** in a regional forest supply chain. This project is the AI layer that makes such early warning usable: a conversational analyst over live risk signals.
 
 ## What it demonstrates
 
@@ -44,7 +44,7 @@ All raw pulls are immutable with SHA-256 hashes and retrieval timestamps in `dat
 ## Quickstart
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/supply-chain-copilot
+git clone https://github.com/upasanasen/supply-chain-copilot
 cd supply-chain-copilot
 export PYTHONPATH=src
 
