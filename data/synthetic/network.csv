@@ -1,0 +1,9 @@
+node_id,node_name,node_type,weekly_capacity_m3,weekly_demand_m3,inventory_m3,safety_stock_m3,primary_supplier
+H1,Harvest Area North,harvest,4800,0,0,0,
+H2,Harvest Area Central,harvest,5600,0,0,0,
+H3,Harvest Area South,harvest,4200,0,0,0,
+T1,Terminal Alvesta,terminal,9000,0,6500,3000,H1
+T2,Terminal Nybro,terminal,7500,0,5200,2500,H3
+M1,Sawmill Vislanda,mill,0,5200,4100,2600,T1
+M2,Pulp Mill Mönsterås,mill,0,6800,5900,3400,T2
+P1,Export Port Kalmar,port,0,1500,900,750,T2

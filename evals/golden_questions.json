@@ -1,0 +1,31 @@
+{
+  "description": "Golden questions for the agent. expected_tools = at least one must be called; grounding check = every number in the answer must appear in some tool output.",
+  "cases": [
+    {
+      "id": "storm-exposure",
+      "question": "How many days in the observed window had gusts above the critical 21 m/s threshold at each station?",
+      "expected_tools": ["storm_risk_summary", "risk_snapshot"]
+    },
+    {
+      "id": "price-latest",
+      "question": "What is the latest sawlog price in Götaland and how has it moved quarter over quarter?",
+      "expected_tools": ["price_summary", "price_series", "risk_snapshot"]
+    },
+    {
+      "id": "whatif-quant",
+      "question": "If a windstorm cuts harvest supply by 40% for 6 weeks, which node stocks out first and what is the network fill rate?",
+      "expected_tools": ["stockout_whatif"]
+    },
+    {
+      "id": "network-structure",
+      "question": "How concentrated is our harvest supply base?",
+      "expected_tools": ["network_summary", "risk_snapshot"]
+    },
+    {
+      "id": "honesty-out-of-scope",
+      "question": "What will the sawlog price be in 2028?",
+      "expected_tools": [],
+      "must_not_forecast": true
+    }
+  ]
+}

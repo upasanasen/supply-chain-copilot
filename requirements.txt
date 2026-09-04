@@ -1,0 +1,6 @@
+# Tools, tests, demo and report run on the standard library alone.
+# Agent (chat/ask/evals) additionally needs:
+anthropic>=0.40
+
+# Development:
+pytest>=8
