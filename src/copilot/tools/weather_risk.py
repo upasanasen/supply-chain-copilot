@@ -1,11 +1,14 @@
 """Storm-risk analytics over real SMHI gust observations (stdlib only)."""
+
 from __future__ import annotations
 
 import csv
-from pathlib import Path
 from statistics import mean
 
-DATA = Path(__file__).resolve().parents[3] / "data" / "processed" / "wind_daily.csv"
+from ..data_paths import data_file
+
+DATA = data_file("processed", "wind_daily.csv")
+MAX_RECENT_DAYS = 90
 
 # Operational thresholds (m/s). 21 m/s gusts ≈ level where harvesting and
 # forwarding are typically suspended and windthrow risk becomes material.
@@ -28,7 +31,11 @@ def storm_risk_summary() -> dict:
     for r in rows:
         stations.setdefault(r["station"], []).append(r)
 
-    out = {"threshold_caution_ms": CAUTION_GUST, "threshold_critical_ms": CRITICAL_GUST, "stations": []}
+    out = {
+        "threshold_caution_ms": CAUTION_GUST,
+        "threshold_critical_ms": CRITICAL_GUST,
+        "stations": [],
+    }
     for name, obs in sorted(stations.items()):
         obs.sort(key=lambda r: r["date"])
         gusts = [r["max_gust_ms"] for r in obs]
@@ -51,12 +58,28 @@ def storm_risk_summary() -> dict:
 
 def recent_gusts(station: str, days: int = 14) -> dict:
     """Daily max gusts for one station over the last N observed days."""
-    rows = [r for r in _load() if station.lower() in r["station"].lower()]
-    if not rows:
-        return {"error": f"No station matching {station!r}. Available: Växjö A, Hagshult, Ljungby A."}
+    if not isinstance(station, str) or not station.strip():
+        return {"error": "station must be a non-empty name"}
+    if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= MAX_RECENT_DAYS:
+        return {"error": f"days must be an integer between 1 and {MAX_RECENT_DAYS}"}
+
+    all_rows = _load()
+    available = sorted({r["station"] for r in all_rows})
+    query = station.strip().casefold()
+    matches = [
+        name for name in available if query in {name.casefold(), name.removesuffix(" A").casefold()}
+    ]
+    if len(matches) != 1:
+        return {
+            "error": f"No unique station matching {station!r}.",
+            "available_stations": available,
+        }
+
+    selected = matches[0]
+    rows = [r for r in all_rows if r["station"] == selected]
     rows.sort(key=lambda r: r["date"])
     tail = rows[-days:]
     return {
-        "station": rows[0]["station"],
+        "station": selected,
         "series": [{"date": r["date"], "max_gust_ms": r["max_gust_ms"]} for r in tail],
     }

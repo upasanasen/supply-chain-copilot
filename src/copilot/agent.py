@@ -9,6 +9,7 @@ Design principles
    interpretation, and communication.
 3. The loop is transparent: every tool call and result is surfaced to the caller.
 """
+
 from __future__ import annotations
 
 import json
@@ -45,23 +46,28 @@ class AgentResult:
     text: str
     tool_calls: list[dict] = field(default_factory=list)
     turns: int = 0
+    messages: list[dict] = field(default_factory=list)
 
 
 def _client():
     try:
         import anthropic
     except ImportError as e:
-        raise SystemExit("The 'anthropic' package is required for agent mode: pip install anthropic") from e
+        raise SystemExit(
+            "The 'anthropic' package is required for agent mode: pip install anthropic"
+        ) from e
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise SystemExit(
-            "ANTHROPIC_API_KEY is not set. Copy .env.example, add your key, and "
-            "`export ANTHROPIC_API_KEY=...` — or try `python -m copilot.cli demo` "
+            "ANTHROPIC_API_KEY is not set. Run `export ANTHROPIC_API_KEY=...` "
+            "before starting agent mode — or try `python -m copilot.cli demo`, "
             "which needs no key."
         )
     return anthropic.Anthropic()
 
 
-def ask(question: str, history: list[dict] | None = None, model: str = DEFAULT_MODEL) -> AgentResult:
+def ask(
+    question: str, history: list[dict] | None = None, model: str = DEFAULT_MODEL
+) -> AgentResult:
     """Run the tool-use loop for one user question. Returns final text + trace."""
     client = _client()
     messages = list(history or []) + [{"role": "user", "content": question}]
@@ -80,6 +86,7 @@ def ask(question: str, history: list[dict] | None = None, model: str = DEFAULT_M
 
         if response.stop_reason != "tool_use":
             result.text = "".join(b.text for b in response.content if b.type == "text")
+            result.messages = messages
             return result
 
         tool_results = []
@@ -98,4 +105,5 @@ def ask(question: str, history: list[dict] | None = None, model: str = DEFAULT_M
         messages.append({"role": "user", "content": tool_results})
 
     result.text = "(Stopped: exceeded maximum tool-use turns.)"
+    result.messages = messages
     return result

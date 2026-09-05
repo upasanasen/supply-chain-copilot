@@ -1,4 +1,5 @@
 """Provenance manifest for raw data files (SHA-256 + retrieval metadata)."""
+
 from __future__ import annotations
 
 import hashlib

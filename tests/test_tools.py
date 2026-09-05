@@ -1,10 +1,12 @@
 """Unit tests for the deterministic analytics tools (no LLM, no network)."""
+
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from copilot.schemas import run_tool
+from copilot.schemas import TOOLS, run_tool
 from copilot.tools import inventory, price_trends, weather_risk
 
 
@@ -25,6 +27,12 @@ def test_recent_gusts_and_unknown_station():
     assert "error" in weather_risk.recent_gusts("Stockholm")
 
 
+def test_recent_gusts_rejects_empty_station_and_invalid_days():
+    assert "error" in weather_risk.recent_gusts("", days=7)
+    assert "error" in weather_risk.recent_gusts("Växjö", days=0)
+    assert "error" in weather_risk.recent_gusts("Växjö", days=91)
+
+
 def test_price_summary_real_ranges():
     out = price_trends.price_summary("Sawlogs", "Götaland")
     assert out["assortment"] == "Sawlogs"
@@ -36,6 +44,17 @@ def test_price_summary_real_ranges():
 def test_price_summary_unknown_returns_options():
     out = price_trends.price_summary("Bananas", "Götaland")
     assert "error" in out and "available_assortments" in out
+
+
+def test_price_queries_reject_empty_or_ambiguous_filters():
+    assert "error" in price_trends.price_summary("", "Götaland")
+    assert "error" in price_trends.price_summary("Pulpwood", "Götaland")
+    assert "error" in price_trends.price_series("Sawlogs", "", last_n=3)
+
+
+def test_price_series_rejects_invalid_length():
+    assert "error" in price_trends.price_series(last_n=0)
+    assert "error" in price_trends.price_series(last_n=41)
 
 
 def test_network_summary_balance():
@@ -72,6 +91,8 @@ def test_whatif_monotonic_in_severity():
 def test_whatif_input_validation():
     assert "error" in inventory.stockout_whatif(150, 8)
     assert "error" in inventory.stockout_whatif(20, 0)
+    assert "error" in inventory.stockout_whatif(True, 8)
+    assert "error" in inventory.stockout_whatif(20, True)
 
 
 def test_dispatch_layer():
@@ -79,6 +100,22 @@ def test_dispatch_layer():
     assert "latest_price_sek_m3" in out
     assert "error" in run_tool("nonexistent_tool", {})
     assert "error" in run_tool("stockout_whatif", {"bogus_arg": 1})
+
+
+def test_dispatch_returns_controlled_data_errors():
+    with patch.object(weather_risk, "_load", side_effect=FileNotFoundError("missing.csv")):
+        out = run_tool("storm_risk_summary", {})
+    assert "error" in out
+    assert "data is unavailable or invalid" in out["error"]
+
+
+def test_tool_schemas_reject_unexpected_fields_and_bound_list_sizes():
+    schemas = {tool["name"]: tool["input_schema"] for tool in TOOLS}
+    assert all(schema["additionalProperties"] is False for schema in schemas.values())
+    assert schemas["recent_gusts"]["properties"]["days"]["minimum"] == 1
+    assert schemas["recent_gusts"]["properties"]["days"]["maximum"] == 90
+    assert schemas["price_series"]["properties"]["last_n"]["minimum"] == 1
+    assert schemas["price_series"]["properties"]["last_n"]["maximum"] == 40
 
 
 def test_risk_snapshot_combines_all_sources():

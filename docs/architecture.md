@@ -17,9 +17,10 @@ src/copilot/
   schemas.py             Tool JSON schemas for the LLM + dispatch table
   agent.py               Anthropic tool-use loop (ask → tools → grounded answer)
   cli.py                 demo / report / chat / ask commands
+  data_paths.py          Data lookup for source checkouts and installed packages
 
-tests/                   14 pytest cases: tool correctness, validation,
-                         monotonicity, mocked agent loop, loop termination
+tests/                   Pytest cases: tool correctness, validation,
+                         monotonicity, mocked agent loop, evaluator behaviour
 evals/                   Golden questions + numeric-grounding harness
 ```
 
@@ -29,8 +30,9 @@ evals/                   Golden questions + numeric-grounding harness
 
 1. **Bounded**: at most `MAX_TURNS` model calls, with an explicit truncation message.
 2. **Traceable**: every tool call (name, input, output) is returned to the caller
-   in `AgentResult.tool_calls`, and the CLI prints them, so a user always sees
-   *why* the agent answered what it answered.
+   in `AgentResult.tool_calls`, and the complete message history is retained for
+   follow-up questions. The CLI prints tool calls so a user always sees *why* the
+   agent answered what it answered.
 3. **Grounded**: the system prompt forbids numbers that don't come from tool
    results; the eval harness checks this by extracting every numeric token from
    the answer and requiring it to appear in the serialized tool outputs.

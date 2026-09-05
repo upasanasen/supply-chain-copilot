@@ -1,10 +1,18 @@
-# supply-chain-copilot
+# Supply Chain Copilot
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **An LLM agent for supply-chain risk analysis, grounded in real public data and deterministic analytics.**
 
 Ask it questions like *"If a windstorm cuts harvest supply by 40% for six weeks, which mill stocks out first?"* — and it answers by calling tested, deterministic tools over real Swedish weather and timber-price data, never by guessing numbers.
 
-Built as a companion to my simulation project [RESILIENT-Forest](https://github.com/upasanasen/resilient-forest), which found that **early warning is the best self-funding resilience intervention** in a regional forest supply chain. This project is the AI layer that makes such early warning usable: a conversational analyst over live risk signals.
+Built as a companion to my simulation project [RESILIENT-Forest](https://github.com/upasanasen/resilient-forest), which found that **early warning is the best self-funding resilience intervention** in a regional forest supply chain. This project is the AI layer that makes such early warning usable: a conversational analyst over recent public-data risk signals.
+
+> **Example decision output:** Under the included 40% supply-reduction scenario,
+> Export Port Kalmar breaches safety stock first, in week 3. The six-week network
+> fill rate is 92.8%. This is explicitly labelled as a deterministic projection over
+> the synthetic network; weather and price observations remain labelled as real data.
 
 ## What it demonstrates
 
@@ -39,25 +47,32 @@ The design inverts the usual "ask the LLM to analyze" pattern: **the LLM never c
 | Quarterly roundwood prices by region & assortment, 2019Q1– | [Swedish Forest Agency](https://www.skogsstyrelsen.se/) PxWeb API | **Real** |
 | 8-node forest supply network (harvest → terminal → mill/port) | `data/synthetic/` | Synthetic, clearly labeled |
 
-All raw pulls are immutable with SHA-256 hashes and retrieval timestamps in `data/raw/manifest.json`. Re-fetch anytime with `python scripts/fetch_smhi_wind.py` and `python scripts/fetch_prices_pxweb.py` (stdlib only, no keys needed).
+The repository contains the latest raw snapshots, with SHA-256 hashes, source URLs,
+licenses and retrieval timestamps recorded in `data/raw/manifest.json`. Git history
+preserves previously committed snapshots. Re-fetch anytime with
+`python scripts/fetch_smhi_wind.py` and `python scripts/fetch_prices_pxweb.py`
+(stdlib only, no keys needed).
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/upasanasen/supply-chain-copilot
 cd supply-chain-copilot
-export PYTHONPATH=src
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 
 # No API key needed:
-python -m copilot.cli demo     # run the tools directly
-python -m copilot.cli report   # deterministic markdown risk snapshot
-python -m pytest tests/ -q     # 14 tests, no network, no key
+supply-chain-copilot demo      # run the tools directly
+supply-chain-copilot report    # deterministic markdown risk snapshot
+pytest -q                      # tests run without network or an API key
 
-# With an Anthropic API key (pip install anthropic):
+# For agent mode, add the optional Anthropic dependency:
+pip install -e ".[agent]"
 export ANTHROPIC_API_KEY=sk-ant-...
-python -m copilot.cli chat     # interactive agent
-python -m copilot.cli ask "Which node stocks out first if supply drops 40% for 6 weeks?"
-python evals/run_evals.py      # golden-question evals incl. grounding check
+supply-chain-copilot chat      # interactive agent
+supply-chain-copilot ask "Which node stocks out first if supply drops 40% for 6 weeks?"
+python evals/run_evals.py      # golden-question evals including grounding checks
 ```
 
 See [docs/example_session.md](docs/example_session.md) for a walkthrough with real outputs.
@@ -68,6 +83,17 @@ See [docs/example_session.md](docs/example_session.md) for a walkthrough with re
 2. **Honest data boundaries.** Real data (weather, prices) is kept strictly separate from the synthetic network, in the folder layout, the tool descriptions, and the agent's own answers.
 3. **Determinism where it matters.** The what-if projection is plain, auditable arithmetic with input validation and monotonicity tests — the kind of tool an analyst can defend in a review.
 4. **Cheap to run, easy to verify.** Tools are stdlib-only; tests and demo run without any API key; the only dependency for agent mode is `anthropic`.
+
+## Project status and roadmap
+
+This is a portfolio-quality prototype, not a production forecasting system.
+
+- [x] Deterministic analytics with unit tests
+- [x] Grounded LLM tool-use loop and golden-question evaluations
+- [x] Reproducible public-data snapshots with provenance
+- [ ] Automated linting and tests across supported Python versions
+- [ ] Scheduled data refresh with snapshot retention
+- [ ] Optimization-based rerouting and a small interactive dashboard
 
 ## Limitations (deliberate scope)
 

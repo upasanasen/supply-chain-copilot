@@ -1,10 +1,11 @@
 """CLI entry points.
 
-  python -m copilot.cli demo     # deterministic tool demo, no API key needed
-  python -m copilot.cli report   # deterministic markdown risk snapshot, no key
-  python -m copilot.cli chat     # interactive LLM agent (needs ANTHROPIC_API_KEY)
-  python -m copilot.cli ask "…"  # one-shot LLM question (needs key)
+python -m copilot.cli demo     # deterministic tool demo, no API key needed
+python -m copilot.cli report   # deterministic markdown risk snapshot, no key
+python -m copilot.cli chat     # interactive LLM agent (needs ANTHROPIC_API_KEY)
+python -m copilot.cli ask "…"  # one-shot LLM question (needs key)
 """
+
 from __future__ import annotations
 
 import json
@@ -41,13 +42,15 @@ def cmd_report() -> None:
     for st in w["stations"]:
         lines.append(
             f"- **{st['station']}** ({st['window']}): max gust {st['max_gust_ms']} m/s "
-            f"on {st['max_gust_date']}; {st['days_over_caution']} days ≥ {w['threshold_caution_ms']} m/s, "
+            f"on {st['max_gust_date']}; {st['days_over_caution']} days ≥ "
+            f"{w['threshold_caution_ms']} m/s, "
             f"{st['days_over_critical']} days ≥ {w['threshold_critical_ms']} m/s."
         )
     lines.append("\n## Price momentum (real Swedish Forest Agency data)\n")
     for label, p in (("Sawlogs", saw), ("Pulpwood", pulp)):
         lines.append(
-            f"- **{label}, {p['region']}** ({p['latest_quarter']}): {p['latest_price_sek_m3']} SEK/m³ "
+            f"- **{label}, {p['region']}** ({p['latest_quarter']}): "
+            f"{p['latest_price_sek_m3']} SEK/m³ "
             f"({p['qoq_change_pct']:+.1f}% QoQ, {p['yoy_change_pct']:+.1f}% YoY; "
             f"range since 2019: {p['min_since_2019']}–{p['max_since_2019']})."
         )
@@ -77,8 +80,9 @@ def cmd_chat() -> None:
         for call in result.tool_calls:
             print(f"  [tool] {call['tool']}({json.dumps(call['input'], ensure_ascii=False)})")
         print(f"\ncopilot> {result.text}")
-        history.append({"role": "user", "content": q})
-        history.append({"role": "assistant", "content": result.text})
+        # Preserve assistant tool calls and their results so follow-up questions
+        # retain the evidence behind earlier answers.
+        history = result.messages
 
 
 def cmd_ask(question: str) -> None:
@@ -86,7 +90,10 @@ def cmd_ask(question: str) -> None:
 
     result = ask(question)
     for call in result.tool_calls:
-        print(f"[tool] {call['tool']}({json.dumps(call['input'], ensure_ascii=False)})", file=sys.stderr)
+        print(
+            f"[tool] {call['tool']}({json.dumps(call['input'], ensure_ascii=False)})",
+            file=sys.stderr,
+        )
     print(result.text)
 
 

@@ -1,5 +1,8 @@
 """Tool definitions exposed to the LLM, and the dispatch table."""
+
 from __future__ import annotations
+
+import csv
 
 from .tools import inventory, price_trends, report, weather_risk
 
@@ -11,7 +14,12 @@ TOOLS = [
             "(3 stations in the Småland forest region, ~4 recent months): max gusts, "
             "days over caution (15 m/s) and critical (21 m/s) thresholds, recent trend."
         ),
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
     },
     {
         "name": "recent_gusts",
@@ -19,10 +27,20 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "station": {"type": "string", "description": "Station name (Växjö, Hagshult, or Ljungby)"},
-                "days": {"type": "integer", "description": "Number of days (default 14)"},
+                "station": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Station name (Växjö, Hagshult, or Ljungby)",
+                },
+                "days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": weather_risk.MAX_RECENT_DAYS,
+                    "description": "Number of days (default 14)",
+                },
             },
             "required": ["station"],
+            "additionalProperties": False,
         },
     },
     {
@@ -36,23 +54,36 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "assortment": {"type": "string", "description": "e.g. 'Sawlogs' or 'Pulpwood total'"},
-                "region": {"type": "string", "description": "e.g. 'Götaland'"},
+                "assortment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "e.g. 'Sawlogs' or 'Pulpwood total'",
+                },
+                "region": {"type": "string", "minLength": 1, "description": "e.g. 'Götaland'"},
             },
             "required": [],
+            "additionalProperties": False,
         },
     },
     {
         "name": "price_series",
-        "description": "Raw quarterly price series (last N quarters) for one region and assortment.",
+        "description": (
+            "Raw quarterly price series (last N quarters) for one region and assortment."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "assortment": {"type": "string"},
-                "region": {"type": "string"},
-                "last_n": {"type": "integer", "description": "Quarters to return (default 8)"},
+                "assortment": {"type": "string", "minLength": 1},
+                "region": {"type": "string", "minLength": 1},
+                "last_n": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": price_trends.MAX_SERIES_POINTS,
+                    "description": "Quarters to return (default 8)",
+                },
             },
             "required": [],
+            "additionalProperties": False,
         },
     },
     {
@@ -61,7 +92,12 @@ TOOLS = [
             "Structure and posture of the (synthetic, illustrative) 8-node supply network: "
             "nodes, weekly supply vs demand, slack, and harvest supply concentration (HHI)."
         ),
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
     },
     {
         "name": "stockout_whatif",
@@ -74,16 +110,34 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "supply_reduction_pct": {"type": "number", "description": "0-100"},
-                "duration_weeks": {"type": "integer", "description": "1-52"},
+                "supply_reduction_pct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "0-100",
+                },
+                "duration_weeks": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 52,
+                    "description": "1-52",
+                },
             },
             "required": ["supply_reduction_pct", "duration_weeks"],
+            "additionalProperties": False,
         },
     },
     {
         "name": "risk_snapshot",
-        "description": "One-call combined snapshot (weather + prices + network) for drafting risk reports.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "description": (
+            "One-call combined snapshot (weather + prices + network) for drafting risk reports."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
     },
 ]
 
@@ -99,9 +153,14 @@ DISPATCH = {
 
 
 def run_tool(name: str, tool_input: dict) -> dict:
-    try:
-        return DISPATCH[name](**tool_input)
-    except KeyError:
+    tool = DISPATCH.get(name)
+    if tool is None:
         return {"error": f"Unknown tool {name!r}"}
+    try:
+        return tool(**tool_input)
     except TypeError as e:
         return {"error": f"Bad arguments for {name}: {e}"}
+    except (OSError, ValueError, KeyError, csv.Error) as e:
+        return {
+            "error": f"{name} could not complete because its data is unavailable or invalid: {e}"
+        }

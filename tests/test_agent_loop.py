@@ -1,4 +1,5 @@
 """Agent-loop tests with a mocked Anthropic client (no API key, no network)."""
+
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -69,6 +70,14 @@ def test_tool_use_round_trip_executes_real_tool():
         and m["content"][0].get("type") == "tool_result"
     ]
     assert tool_result_msgs, "no tool_result message sent back to the model"
+    assert result.messages[-1]["role"] == "assistant"
+    assert any(
+        message["role"] == "user"
+        and isinstance(message["content"], list)
+        and message["content"]
+        and message["content"][0].get("type") == "tool_result"
+        for message in result.messages
+    )
 
 
 def test_loop_terminates_at_max_turns():
@@ -77,3 +86,25 @@ def test_loop_terminates_at_max_turns():
         result = agent.ask("loop forever")
     assert result.turns == agent.MAX_TURNS
     assert "maximum tool-use turns" in result.text
+
+
+def test_complete_history_can_be_reused_for_follow_up():
+    first_client = FakeClient(
+        [_tool_response("network_summary", {}), _text_response("The network has 8 nodes.")]
+    )
+    with patch.object(agent, "_client", return_value=first_client):
+        first = agent.ask("describe the network")
+
+    second_client = FakeClient([_text_response("Here is the follow-up.")])
+    with patch.object(agent, "_client", return_value=second_client):
+        agent.ask("which are demand nodes?", history=first.messages)
+
+    follow_up_messages = second_client.requests[0]["messages"]
+    assert follow_up_messages[:-2] == first.messages
+    assert follow_up_messages[-2] == {"role": "user", "content": "which are demand nodes?"}
+    assert any(
+        message["role"] == "user"
+        and isinstance(message["content"], list)
+        and message["content"][0].get("type") == "tool_result"
+        for message in follow_up_messages
+    )

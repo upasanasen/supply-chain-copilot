@@ -4,12 +4,14 @@ The network is synthetic and illustrative (see data/synthetic/README.md); the
 projection logic itself is the point: transparent, testable arithmetic the LLM
 agent can call instead of guessing numbers.
 """
+
 from __future__ import annotations
 
 import csv
-from pathlib import Path
 
-DATA = Path(__file__).resolve().parents[3] / "data" / "synthetic" / "network.csv"
+from ..data_paths import data_file
+
+DATA = data_file("synthetic", "network.csv")
 
 NUMERIC = ["weekly_capacity_m3", "weekly_demand_m3", "inventory_m3", "safety_stock_m3"]
 
@@ -35,7 +37,8 @@ def network_summary() -> dict:
     return {
         "note": "Synthetic illustrative network (no real company data).",
         "nodes": [
-            {k: r[k] for k in ("node_id", "node_name", "node_type")} | {"weekly_demand_m3": r["weekly_demand_m3"], "inventory_m3": r["inventory_m3"]}
+            {k: r[k] for k in ("node_id", "node_name", "node_type")}
+            | {"weekly_demand_m3": r["weekly_demand_m3"], "inventory_m3": r["inventory_m3"]}
             for r in rows
         ],
         "weekly_supply_capacity_m3": supply,
@@ -52,9 +55,17 @@ def stockout_whatif(supply_reduction_pct: float, duration_weeks: int) -> dict:
     the (reduced) harvest supply allocated pro-rata to demand. Reports weeks
     until each demand node breaches safety stock and until stockout.
     """
-    if not 0 <= supply_reduction_pct <= 100:
+    if (
+        isinstance(supply_reduction_pct, bool)
+        or not isinstance(supply_reduction_pct, (int, float))
+        or not 0 <= supply_reduction_pct <= 100
+    ):
         return {"error": "supply_reduction_pct must be between 0 and 100"}
-    if not 1 <= duration_weeks <= 52:
+    if (
+        isinstance(duration_weeks, bool)
+        or not isinstance(duration_weeks, int)
+        or not 1 <= duration_weeks <= 52
+    ):
         return {"error": "duration_weeks must be between 1 and 52"}
 
     rows = _load()
@@ -110,7 +121,5 @@ def stockout_whatif(supply_reduction_pct: float, duration_weeks: int) -> dict:
         },
         "nodes": results,
         "total_unmet_demand_m3": round(total_unmet),
-        "fill_rate_pct": round(
-            (1 - total_unmet / (total_demand * duration_weeks)) * 100, 1
-        ),
+        "fill_rate_pct": round((1 - total_unmet / (total_demand * duration_weeks)) * 100, 1),
     }

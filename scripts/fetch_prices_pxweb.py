@@ -4,14 +4,16 @@ Table JO0303_3ny.px: average delivery-timber prices (SEK/m3 solid under bark)
 by region and assortment, quarterly from 2019Q1.
 
 Outputs:
-  data/raw/roundwood_prices.json     (immutable raw response)
+  data/raw/roundwood_prices.json     (latest raw response; prior commits remain in Git)
   data/processed/prices_quarterly.csv (region, assortment, quarter, price_sek_m3)
   data/raw/manifest.json             (updated with SHA-256 + provenance)
 
 Source: Skogsstyrelsen (Swedish Forest Agency) statistical database.
 """
+
 from __future__ import annotations
 
+import csv
 import json
 import urllib.request
 from pathlib import Path
@@ -56,11 +58,11 @@ def main() -> None:
     meta = _request(URL)
     labels: dict[str, dict[str, str]] = {}
     for var in meta["variables"]:
-        labels[var["code"]] = dict(zip(var["values"], var["valueTexts"]))
+        labels[var["code"]] = dict(zip(var["values"], var["valueTexts"], strict=True))
 
     payload = _request(URL, QUERY)
     raw_path = RAW / "roundwood_prices.json"
-    raw_path.write_text(json.dumps(payload, ensure_ascii=False))
+    raw_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     update_manifest(
         raw_path,
         source="Skogsstyrelsen PxWeb table JO0303_3ny.px (quarterly roundwood prices)",
@@ -70,8 +72,9 @@ def main() -> None:
 
     out = PROCESSED / "prices_quarterly.csv"
     n = 0
-    with out.open("w") as f:
-        f.write("region,assortment,quarter,price_sek_m3\n")
+    with out.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, lineterminator="\n")
+        writer.writerow(["region", "assortment", "quarter", "price_sek_m3"])
         for row in payload["data"]:
             region_code, assort_code, quarter_code = row["key"]
             value = row["values"][0]
@@ -80,7 +83,7 @@ def main() -> None:
             region = labels["Landsdel"][region_code]
             assortment = labels["Sortiment"][assort_code]
             quarter = labels["Kvartal"][quarter_code]
-            f.write(f"{region},{assortment},{quarter},{value}\n")
+            writer.writerow([region, assortment, quarter, value])
             n += 1
     print(f"Wrote {out} ({n} rows)")
 

@@ -1,6 +1,6 @@
-# Tools, tests, demo and report run on the standard library alone.
-# Agent (chat/ask/evals) additionally needs:
-anthropic>=0.40
-
-# Development:
-pytest>=8
+# Backwards-compatible all-in-one install.
+# Prefer `pip install -e ".[dev,agent]"` for local development.
+anthropic>=0.40,<1
+build>=1,<2
+pytest>=8,<9
+ruff>=0.8,<1

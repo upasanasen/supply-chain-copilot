@@ -1,4 +1,5 @@
 """Combined risk snapshot: one call that gathers all signal sources."""
+
 from __future__ import annotations
 
 from . import inventory, price_trends, weather_risk
